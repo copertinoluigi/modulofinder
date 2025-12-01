@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { model } from '@/lib/gemini'
 
-// Client Supabase Admin (per scrivere nel DB)
+// Client Supabase con privilegi ADMIN (Service Role Key)
+// Questa chiave NON deve mai essere esposta nel browser
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -10,23 +11,40 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
+    // Verifica password semplice passata nell'header per sicurezza minima
+    const password = req.headers.get('x-admin-password')
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { productTitle, features, amazonLink } = await req.json()
 
+    // Prompt per Gemini
     const prompt = `
-      Agisci come un esperto di edilizia modulare. Scrivi una recensione web completa per: ${productTitle}.
-      Caratteristiche tecniche: ${features}.
+      Sei un esperto copywriter SEO per "ModuloFinder". 
+      Scrivi una recensione dettagliata in HTML (senza tag body/html) per il prodotto: ${productTitle}.
+      Caratteristiche: ${features}.
       
-      Regole:
-      1. Usa formato HTML pulito (<h2>, <p>, <ul>, <li>). Non usare Markdown, non usare <html> o <body>.
-      2. Struttura: Introduzione, Analisi Tecnica, Pro e Contro, Conclusione.
-      3. Tono: Professionale e utile per la SEO.
+      Struttura:
+      <h2>Panoramica</h2>
+      <p>Intro accattivante...</p>
+      <h2>Caratteristiche Tecniche</h2>
+      <ul>...</ul>
+      <h2>Pro e Contro</h2>
+      <p>Analisi onesta...</p>
+      <h2>Conclusione</h2>
+      <p>Giudizio finale.</p>
+      
+      Importante: Inserisci una Call to Action per vedere il prezzo su Amazon.
     `
 
-    // Genera contenuto con Google Gemini
-    const result = await model.generateContent(prompt);
-    const content = result.response.text();
-
-    const slug = productTitle.toLowerCase().slice(0, 50).replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+    const result = await model.generateContent(prompt)
+    const content = result.response.text()
+    
+    // Genera slug
+    const slug = productTitle.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '') + '-' + Date.now().toString().slice(-4)
 
     // Salva nel DB
     const { data, error } = await supabaseAdmin
@@ -35,16 +53,17 @@ export async function POST(req: Request) {
         title: `Recensione: ${productTitle}`,
         slug: slug,
         content: content,
-        is_published: true 
+        meta_description: `Scopri tutto su ${productTitle}. Prezzi, caratteristiche e opinioni.`,
+        is_published: true
       })
       .select()
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, slug })
 
   } catch (error) {
     console.error(error)
-    return NextResponse.json({ success: false, error: 'Errore server' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Internal Error' }, { status: 500 })
   }
 }
