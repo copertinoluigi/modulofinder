@@ -15,7 +15,7 @@ export default function Homepage() {
             <span className="text-yellow-400">a portata di click.</span>
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Il primo motore di ricerca italiano dedicato alle case prefabbricate, tiny house e uffici da giardino venduti su Amazon.
+            Il primo motore di ricerca italiano dedicato alle case prefabbricate, tiny house e uffici da giardino venduti su Amazon!
           </p>
           <div className="flex justify-center gap-4 pt-4">
             <Link href="/finder">
