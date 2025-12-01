@@ -1,39 +1,86 @@
 'use client'
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 
-export default function Admin() {
-  const [form, setForm] = useState({ title: '', features: '', link: '' })
+export default function AdminPage() {
+  const [form, setForm] = useState({ title: '', features: '', link: '', password: '' })
   const [status, setStatus] = useState('')
 
   const handleGenerate = async () => {
-    setStatus('L\'AI sta pensando... 🤖')
-    const res = await fetch('/api/generate-post', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        productTitle: form.title, 
-        features: form.features, 
-        amazonLink: form.link 
+    setStatus('Generazione in corso (10-20 sec)... 🤖')
+    
+    try {
+      const res = await fetch('/api/generate-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': form.password // Passiamo la password nell'header
+        },
+        body: JSON.stringify({
+          productTitle: form.title,
+          features: form.features,
+          amazonLink: form.link
+        })
       })
-    })
-    const data = await res.json()
-    if(data.success) setStatus('✅ Articolo Pubblicato!')
-    else setStatus('❌ Errore.')
+
+      const data = await res.json()
+      
+      if (res.ok && data.success) {
+        setStatus('✅ Articolo Creato e Pubblicato!')
+        setForm(prev => ({ ...prev, title: '', features: '' }))
+      } else {
+        setStatus(`❌ Errore: ${data.error || 'Sconosciuto'}`)
+      }
+    } catch (e) {
+      setStatus('❌ Errore di rete')
+    }
   }
 
   return (
-    <div className="p-10 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-5">Admin ModuloFinder</h1>
-      <div className="flex flex-col gap-4">
-        <input placeholder="Nome Prodotto" className="border p-2" 
-          onChange={e => setForm({...form, title: e.target.value})} />
-        <input placeholder="Link Amazon" className="border p-2" 
-          onChange={e => setForm({...form, link: e.target.value})} />
-        <textarea placeholder="Caratteristiche (copia da Amazon)" className="border p-2 h-32" 
-          onChange={e => setForm({...form, features: e.target.value})} />
-        <button onClick={handleGenerate} className="bg-black text-white p-3 rounded">
-          Genera Recensione con AI
-        </button>
-        <p>{status}</p>
+    <div className="max-w-xl mx-auto py-12 px-4">
+      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+      
+      <div className="bg-white p-6 rounded-xl shadow border space-y-4">
+        <div>
+          <label className="text-sm font-bold">Password Admin</label>
+          <input 
+            type="password" 
+            className="w-full border p-2 rounded" 
+            value={form.password}
+            onChange={e => setForm({...form, password: e.target.value})}
+          />
+        </div>
+        <hr />
+        <div>
+          <label className="text-sm font-bold">Nome Prodotto Amazon</label>
+          <input 
+            className="w-full border p-2 rounded" 
+            value={form.title}
+            onChange={e => setForm({...form, title: e.target.value})}
+          />
+        </div>
+        <div>
+          <label className="text-sm font-bold">Link Affiliato</label>
+          <input 
+            className="w-full border p-2 rounded" 
+            value={form.link}
+            onChange={e => setForm({...form, link: e.target.value})}
+          />
+        </div>
+        <div>
+          <label className="text-sm font-bold">Dettagli (Copia da Amazon)</label>
+          <textarea 
+            className="w-full border p-2 rounded h-32" 
+            value={form.features}
+            onChange={e => setForm({...form, features: e.target.value})}
+          />
+        </div>
+        
+        <Button onClick={handleGenerate} className="w-full bg-blue-600 hover:bg-blue-700">
+          Genera Recensione AI
+        </Button>
+        
+        {status && <p className="text-center font-mono text-sm font-bold">{status}</p>}
       </div>
     </div>
   )
